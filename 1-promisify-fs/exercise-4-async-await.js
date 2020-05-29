@@ -1,18 +1,16 @@
 // require dependencies
-const fs = require('fs');
-const path = require('path');
-const assert = require('assert');
+const fs = require("fs");
+const path = require("path");
+const assert = require("assert");
+const util = require("util");
 
 // declare constants
 const EXERCISE_NAME = path.basename(__filename);
 const START = Date.now();
 
 // declare logging function
-const log = (logId, value) => console.log(
-  `\nlog ${logId} (${Date.now() - START} ms):\n`,
-  value,
-);
-
+const log = (logId, value) =>
+  console.log(`\nlog ${logId} (${Date.now() - START} ms):\n`, value);
 
 // --- main script ---
 console.log(`\n--- ${EXERCISE_NAME} ---`);
@@ -26,58 +24,38 @@ const filePath2 = path.join(__dirname, fileName2);
 log(2, filePath2);
 
 log(3, `reading ${fileName1} ...`);
-fs.readFile(filePath1, 'utf-8', (err, oldFile1) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
+log(4, `reading ${fileName2} ...`);
 
-  log(4, `reading ${fileName2} ...`);
-  fs.readFile(filePath2, 'utf-8', (err, oldFile2) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
+const readFilePromise = util.promisify(fs.readFile);
+const writeFilePromise = util.promisify(fs.writeFile);
 
+const main = async () => {
+  try {
+    const oldFiles = await Promise.all([
+      readFilePromise(filePath1, `utf-8`),
+      readFilePromise(filePath2, `utf-8`),
+    ]);
     log(5, `writing ${fileName1} ...`);
-    fs.writeFile(filePath1, oldFile2, (err) => {
-      if (err) {
-        console.error(err);
-        return;
-      }
+    log(6, `writing ${fileName2} ...`);
+    await Promise.all([
+      writeFilePromise(filePath1, oldFiles[1], `utf-8`),
+      writeFilePromise(filePath2, oldFiles[0], `utf-8`),
+    ]);
+    const newFiles = await Promise.all([
+      readFilePromise(filePath1, `utf-8`),
+      readFilePromise(filePath2, `utf-8`),
+    ]);
+    log(7, `reading ${fileName1} ...`);
+    log(8, "asserting new file 1 contents ...");
+    assert.strictEqual(newFiles[0], oldFiles[1]);
+    log(10, "asserting new file 2 contents ...");
+    assert.strictEqual(newFiles[1], oldFiles[0]);
+    log(11, "\033[32mpass!\x1b[0m");
+    fs.appendFileSync(__filename, `\n// pass: ${new Date().toLocaleString()}`);
+  } catch (err) {
+    console.error(err);
+  }
+};
+main();
 
-      log(6, `writing ${fileName2} ...`);
-      fs.writeFile(filePath2, oldFile1, (err) => {
-        if (err) {
-          console.error(err);
-          return;
-        }
-
-        log(7, `reading ${fileName1} ...`);
-        fs.readFile(filePath1, 'utf-8', (err, newFile1) => {
-          if (err) {
-            console.error(err);
-            return;
-          }
-
-          log(8, 'asserting new file 1 contents ...');
-          assert.strictEqual(newFile1, oldFile2);
-
-          log(9, `reading ${fileName2} ...`);
-          fs.readFile(filePath2, 'utf-8', (err, newFile2) => {
-            if (err) {
-              console.error(err);
-              return;
-            }
-
-            log(10, 'asserting new file 2 contents ...');
-            assert.strictEqual(newFile2, oldFile1);
-
-            log(11, '\033[32mpass!\x1b[0m');
-            fs.appendFileSync(__filename, `\n// pass: ${(new Date()).toLocaleString()}`);
-          })
-        })
-      })
-    })
-  })
-})
+// pass: 5/29/2020, 7:29:40 PM
